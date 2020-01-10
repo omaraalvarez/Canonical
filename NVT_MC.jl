@@ -5,8 +5,8 @@ using Test;
 function MonteCarlo(ρ::Float64, L::Float64, T::Float64, R_Cut::Float64 = 3.0)
     println("NVT MONTE CARLO")
     """ CONFIGURATIONAL STEPS """
-    MC_Relaxation_Steps = 50_000;
-    MC_Equilibrium_Steps = 120_000;
+    MC_Relaxation_Steps = 100_000;
+    MC_Equilibrium_Steps = 250_000;
     MC_Steps = MC_Equilibrium_Steps + MC_Relaxation_Steps;
     MC_Measurement = 10;
     """ VARIABLE INITIALIZATION """
@@ -15,9 +15,10 @@ function MonteCarlo(ρ::Float64, L::Float64, T::Float64, R_Cut::Float64 = 3.0)
     σ_p, λ_p = 0.5, 1.5;
     Beta = 1.0/T;
     Displacement, N_Displacement, N_Displacement_Accepted = 0.1*ρ^(-1.0/3.0), 0, 0;
-    Energy_Sum, μ_Sum, N_Measurements = 0., 0., 0;
-    Energy_Array, μ_Array = zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) ), zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) );
-    Average_Energy_Array, Average_μ_Array = zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) ), zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) );
+    Energy_Sum, μ_Sum, μ_Ex_Sum, N_Measurements = 0., 0., 0., 0;
+    Energy_Array, μ_Array, μ_Ex_Array = zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) ), zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) ), zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) );
+    Average_Energy_Array, Average_μ_Array, Average_μ_Ex_Array = zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) ), zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) ), zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) );
+    STD_Energy_Array, STD_μ_Array, STD_μ_Ex_Array = zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) ), zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) ), zeros(Float64, convert(Int64, ceil(MC_Equilibrium_Steps / MC_Measurement) ) );
     N_Bins = 150;
     g_r = zeros(Float64, N_Bins)
     """ OUTPUT FILES """
@@ -31,9 +32,13 @@ function MonteCarlo(ρ::Float64, L::Float64, T::Float64, R_Cut::Float64 = 3.0)
     println(Average_Chemical_File, "#\t< mu >")
     Chemical_File = open("$Output_Route/ChemicalPotential.dat", "w");
     println(Chemical_File, "#\tmu ")
+    Average_ExcessChemical_File = open("$Output_Route/AverageExcessChemicalPotential.dat", "w");
+    println(Average_Chemical_File, "#\t< mu_ex >")
+    ExcessChemical_File = open("$Output_Route/ExcessChemicalPotential.dat", "w");
+    println(Chemical_File, "#\tmu_ex ")
     """ INITIAL POSITIONS   """
     x, y, z = InitialPositions(N, L);
-    μ = 0.;
+    μ, μ_Ex = 0., 0.;
     Energy = Total_Energy_Calculation(N, L, R_Cut, x, y, z);
     """ SIMULATION CYCLES """
     for k = 1:MC_Steps
@@ -56,6 +61,7 @@ function MonteCarlo(ρ::Float64, L::Float64, T::Float64, R_Cut::Float64 = 3.0)
         if k > MC_Relaxation_Steps && k % .01MC_Equilibrium_Steps == 0
             println("$(convert(Int64, floor(100(k - MC_Relaxation_Steps) / MC_Equilibrium_Steps)))% Equilibrium ($N_Measurements Measurements). ($N Particles)")
             println("U / N = $(round(Energy / length(x), digits = 6))")
+            println("μ_ex = $(round(μ_Ex, digits = 6))")
             println("μ = $(round(μ, digits = 6))")
             println("Max Displacement = $(round(Displacement, digits = 6))")
             println("Movements: $N_Displacement")
@@ -77,15 +83,32 @@ function MonteCarlo(ρ::Float64, L::Float64, T::Float64, R_Cut::Float64 = 3.0)
                 println(Energy_File, "$N_Measurements\t$(round(Energy_Array[N_Measurements], digits = 6))")
                 Energy_Sum += Energy / length(x);
                 Average_Energy_Array[N_Measurements] = Energy_Sum / N_Measurements;
-                println(Average_Energy_File, "$N_Measurements\t$(round(Average_Energy_Array[N_Measurements], digits = 6))")
+                if N_Measurements > 1
+                    STD_Energy_Array[N_Measurements] = std(Energy_Array[1:N_Measurements]);
+                end
+                println(Average_Energy_File, "$N_Measurements\t$(round(Average_Energy_Array[N_Measurements], digits = 6))\t$(round(STD_Energy_Array[N_Measurements], digits = 6))")
+
                 μ_Ex = WidomInsertion(L, Beta, R_Cut, x, y, z)
                 μ_Ex = - T * log(μ_Ex)
+                μ_Ex_Array[N_Measurements] = μ_Ex;
+                println(ExcessChemical_File, "$N_Measurements\t$(round(μ_Ex_Array[N_Measurements], digits = 6))")
+                μ_Ex_Sum += μ_Ex;
+                Average_μ_Ex_Array[N_Measurements] = μ_Ex_Sum / N_Measurements;
+                if N_Measurements > 1
+                    STD_μ_Ex_Array[N_Measurements] = std(μ_Ex_Array[1:N_Measurements]);
+                end
+                println(Average_ExcessChemical_File, "$N_Measurements\t$(round(Average_μ_Ex_Array[N_Measurements], digits = 6))\t$(round(STD_μ_Ex_Array[N_Measurements], digits = 6))")
+
                 μ = T * log(ρ) + μ_Ex;
                 μ_Array[N_Measurements] = μ;
                 println(Chemical_File, "$N_Measurements\t$(round(μ_Array[N_Measurements], digits = 6))")
                 μ_Sum += μ;
                 Average_μ_Array[N_Measurements] = μ_Sum / N_Measurements;
-                println(Average_Chemical_File, "$N_Measurements\t$(round(Average_μ_Array[N_Measurements], digits = 6))")
+                if N_Measurements > 1
+                    STD_μ_Array[N_Measurements] = std(μ_Array[1:N_Measurements]);
+                end
+                println(Average_Chemical_File, "$N_Measurements\t$(round(Average_μ_Array[N_Measurements], digits = 6))\t$(round(STD_μ_Array[N_Measurements], digits = 6))")
+
                 g_r += Distribution(N_Bins, L, length(x) / V, x, y, z, R_Cut)
             end
             1. * N_Displacement_Accepted / N_Displacement > 0.55 ? Displacement *= 1.05 : Displacement *= 0.95
@@ -99,6 +122,8 @@ function MonteCarlo(ρ::Float64, L::Float64, T::Float64, R_Cut::Float64 = 3.0)
     close(Energy_File)
     close(Average_Chemical_File)
     close(Chemical_File)
+    close(Average_ExcessChemical_File)
+    close(ExcessChemical_File)
 
     g_r /= N_Measurements;
     Delta = R_Cut / N_Bins;
@@ -111,35 +136,48 @@ function MonteCarlo(ρ::Float64, L::Float64, T::Float64, R_Cut::Float64 = 3.0)
     end
     g_r = g_r[1 : N_Bins - 1]
     close(g_r_File)
-    Radial_Distribution_Plot = plot(r, g_r, legend = false, xlabel = "Distance [r]", ylabel = "Normalized Density", width = 3, size = [1200, 800])
+    Radial_Distribution_Plot = plot(r, g_r, guidefontsize = 14, tickfontsize = 10, widen = true, dpi = 300, legend = false, xlabel = "Distance [r]", ylabel = "Normalized Density", width = 3, size = [1200, 800])
     hline!([1.0], color = :black, width = 2, linestyle = :dash)
     savefig(Radial_Distribution_Plot, "$Output_Route/RadialDistribution")
 
+    Summary_File = open("$Output_Route/Summary.dat", "w")
+
     println("< E / N > = $(round(mean(Energy_Array[1:end - 1]), digits = 6)) ± $(round(std(Energy_Array[1:end - 1]), digits = 6))")
-    Energy_Plot = plot(Energy_Array[1:end - 1], legend = false, xlabel = "Measurements", ylabel = "Energy [Unitless]", width = 2, size = [1200, 800])
+    println(Summary_File, "< E / N > = $(round(mean(Energy_Array[1:end - 1]), digits = 6)) ± $(round(std(Energy_Array[1:end - 1]), digits = 6))")
+    Energy_Plot = plot(Energy_Array[1:end - 1], guidefontsize = 14, tickfontsize = 10, widen = true, dpi = 300, legend = false, xlabel = "Measurements", ylabel = "Energy [Unitless]", width = 2, size = [1200, 800])
     hline!([mean(Energy_Array[1:end - 1])], color = :black, width = 2, linestyle = :dash)
     savefig(Energy_Plot, "$Output_Route/Energy")
-    Energy_Histogram = histogram(Energy_Array[convert(Int64, floor(MC_Relaxation_Steps/MC_Measurement)):end - 1], bins = 20, legend = false, xlabel = "Energy [Unitless]", ylabel = "Frequency", size = [1200, 800])
+    Energy_Histogram = histogram(Energy_Array[convert(Int64, floor(MC_Relaxation_Steps/MC_Measurement)):end - 1], guidefontsize = 14, tickfontsize = 10, widen = true, dpi = 300, bins = 20, legend = false, xlabel = "Energy [Unitless]", ylabel = "Frequency", size = [1200, 800])
     vline!([mean(Energy_Array[1:end - 1])], color = :black, width = 2, linestyle = :dash)
     savefig(Energy_Histogram, "$Output_Route/Energy_Histogram")
-    Average_Energy_Plot = plot(Average_Energy_Array[1:end - 1], legend = false, xlabel = "Measurements", ylabel = "< Energy > [Unitless]", width = 3, size = [1200, 800])
+    Average_Energy_Plot = plot(Average_Energy_Array[1:end - 1], ribbon = STD_Energy_Array, fillalpha = 0.2, guidefontsize = 14, tickfontsize = 10, widen = true, dpi = 300, legend = false, xlabel = "Measurements", ylabel = "< Energy > [Unitless]", width = 3, size = [1200, 800])
     hline!([mean(Energy_Array[1:end - 1])], color = :black, width = 2, linestyle = :dash)
     savefig(Average_Energy_Plot, "$Output_Route/Average_Energy")
 
+    println("< mu_Ex > = $(round(mean(μ_Ex_Array[1:end - 1]), digits = 6)) ± $(round(std(μ_Ex_Array[1:end - 1]), digits = 6))")
+    println(Summary_File, "< mu_Ex > = $(round(mean(μ_Ex_Array[1:end - 1]), digits = 6)) ± $(round(std(μ_Ex_Array[1:end - 1]), digits = 6))")
+    ExcessChemical_Plot = plot(μ_Ex_Array[1:end - 1], guidefontsize = 14, tickfontsize = 10, widen = true, dpi = 300, legend = false, xlabel = "Measurements", ylabel = "Excess Chemical Potential [Unitless]", width = 2, size = [1200, 800])
+    hline!([mean(μ_Ex_Array[1:end - 1])], color = :black, width = 2, linestyle = :dash)
+    savefig(ExcessChemical_Plot, "$Output_Route/ExcessChemicalPotential")
+    ExcessChemical_Histogram = histogram(μ_Ex_Array[convert(Int64, floor(MC_Relaxation_Steps/MC_Measurement)):end - 1], guidefontsize = 14, tickfontsize = 10, widen = true, dpi = 300, bins = 20, legend = false, xlabel = "Excess Chemical Potential [Unitless]", ylabel = "Frequency", size = [1200, 800])
+    vline!([mean(μ_Ex_Array[1:end - 1])], color = :black, width = 2, linestyle = :dash)
+    savefig(ExcessChemical_Histogram, "$Output_Route/ExcessChemicalPotential_Histogram")
+    Average_ExcessChemical_Plot = plot(Average_μ_Ex_Array[1:end - 1], ribbon = STD_μ_Ex_Array, fillalpha = 0.2, guidefontsize = 14, tickfontsize = 10, widen = true, dpi = 300, legend = false, xlabel = "Measurements", ylabel = "< Excess Chemical Potential > [Unitless]", width = 3, size = [1200, 800])
+    hline!([mean(μ_Ex_Array[1:end - 1])], color = :black, width = 2, linestyle = :dash)
+    savefig(Average_ExcessChemical_Plot, "$Output_Route/Average_ExcessChemicalPotential")
+
     println("< mu > = $(round(mean(μ_Array[1:end - 1]), digits = 6)) ± $(round(std(μ_Array[1:end - 1]), digits = 6))")
-    Chemical_Plot = plot(μ_Array[1:end - 1], legend = false, xlabel = "Measurements", ylabel = "Total Chemical Potential [Unitless]", width = 2, size = [1200, 800])
+    println(Summary_File, "< mu > = $(round(mean(μ_Array[1:end - 1]), digits = 6)) ± $(round(std(μ_Array[1:end - 1]), digits = 6))")
+    Chemical_Plot = plot(μ_Array[1:end - 1], guidefontsize = 14, tickfontsize = 10, widen = true, dpi = 300, legend = false, xlabel = "Measurements", ylabel = "Total Chemical Potential [Unitless]", width = 2, size = [1200, 800])
     hline!([mean(μ_Array[1:end - 1])], color = :black, width = 2, linestyle = :dash)
     savefig(Chemical_Plot, "$Output_Route/ChemicalPotential")
-    Chemical_Histogram = histogram(μ_Array[convert(Int64, floor(MC_Relaxation_Steps/MC_Measurement)):end - 1], bins = 20, legend = false, xlabel = "Chemical Potential [Unitless]", ylabel = "Frequency", size = [1200, 800])
+    Chemical_Histogram = histogram(μ_Array[convert(Int64, floor(MC_Relaxation_Steps/MC_Measurement)):end - 1], guidefontsize = 14, tickfontsize = 10, widen = true, dpi = 300, bins = 20, legend = false, xlabel = "Chemical Potential [Unitless]", ylabel = "Frequency", size = [1200, 800])
     vline!([mean(μ_Array[1:end - 1])], color = :black, width = 2, linestyle = :dash)
     savefig(Chemical_Histogram, "$Output_Route/ChemicalPotential_Histogram")
-    Average_Chemical_Plot = plot(Average_μ_Array[1:end - 1], legend = false, xlabel = "Measurements", ylabel = "< Chemical Potential > [Unitless]", width = 3, size = [1200, 800])
+    Average_Chemical_Plot = plot(Average_μ_Array[1:end - 1], ribbon = STD_μ_Array, fillalpha = 0.2, guidefontsize = 14, tickfontsize = 10, widen = true, dpi = 300, legend = false, xlabel = "Measurements", ylabel = "< Chemical Potential > [Unitless]", width = 3, size = [1200, 800])
     hline!([mean(μ_Array[1:end - 1])], color = :black, width = 2, linestyle = :dash)
     savefig(Average_Chemical_Plot, "$Output_Route/Average_ChemicalPotential")
 
-    Summary_File = open("$Output_Route/Summary.dat", "w")
-    println(Summary_File, "< E / N > = $(round(mean(Energy_Array), digits = 6)) ± $(round(std(Energy_Array), digits = 6))")
-    println(Summary_File, "< mu > = $(round(mean(μ_Array[1:end - 1]), digits = 6)) ± $(round(std(μ_Array[1:end - 1]), digits = 6))")
     close(Summary_File)
     return mean(μ_Array[1:end - 1]), std(μ_Array[1:end - 1])
 end
@@ -270,17 +308,20 @@ function Distribution(N_Bins::Int64, L::Float64, Density::Float64, x::Array{Floa
     return g_r
 end
 
-function WidomInsertion(L::Float64, Beta::Float64, R_Cut::Float64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1})
+function WidomInsertion(L::Float64, Beta::Float64, R_Cut::Float64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, Insertions::Int64 = 5000)
     μ_Sum = 0.;
-    for i = 1:5000
+    for i = 1:Insertions
         x_μ = L * (rand() - 0.5);
         y_μ = L * (rand() - 0.5);
         z_μ = L * (rand() - 0.5);
         Energy = 0;
         for j = 1:length(x)
             Delta_x = x_μ - x[j];
+            Delta_x = PeriodicBoundaryConditions(L, Delta_x);
             Delta_y = y_μ - y[j];
+            Delta_y = PeriodicBoundaryConditions(L, Delta_y);
             Delta_z = z_μ - z[j];
+            Delta_z = PeriodicBoundaryConditions(L, Delta_z);
             r2 = Delta_x^2 + Delta_y^2 + Delta_z^2;
             if r2 < R_Cut^2
                 Energy += u_SquareWell(r2, 0.5, 1.5)
@@ -288,25 +329,25 @@ function WidomInsertion(L::Float64, Beta::Float64, R_Cut::Float64, x::Array{Floa
         end
         μ_Sum += exp(-Beta * Energy)
     end
-    return μ_Sum / 5000
+    return μ_Sum / Insertions
 end
 
 function Cycle()
-    T_Array = [1., 1.05, 1.1, 1.15, 1.2, 1.25, 1.3, 1.35, 1.4, 1.45, 1.5, 1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85, 1.9, 1.95, 2.0];
+    T_Array = [3.];
     μ_Mean = zeros(Float64, length(T_Array));
     μ_Std = zeros(Float64, length(T_Array));
     i = 1;
-    Route = pwd();
-    Chemical_File = open("$Route/CriticalDensity_0.3.dat", "w+")
-    println(Chemical_File, "T mu mu_error")
+    #Route = pwd();
+    #Chemical_File = open("$Route/CriticalDensity_0.437.dat", "w+")
+    #println(Chemical_File, "T mu mu_error")
     for T in T_Array
-        μ_Mean[i], μ_Std[i] = MonteCarlo(0.3, 10., T)
-        println(Chemical_File, "$T $(μ_Mean[i]) $(μ_Std[i])")
+        μ_Mean[i], μ_Std[i] = MonteCarlo(0.6, 10., T)
+        #println(Chemical_File, "$T $(μ_Mean[i]) $(μ_Std[i])")
         i += 1;
     end
-    close(Chemical_File)
-    Chemical_Plot = plot(T_Array, μ_Mean, yerror = μ_Std, title = "Critical Density = 0.3", legend = false, xlabel = "Temperature", ylabel= "< Chemical Potential > [Unitless]", width = 3, size = [1200, 800]) 
-    savefig(Chemical_Plot, "$Route/CriticalDensity_0.3")
+    #close(Chemical_File)
+    #Chemical_Plot = plot(T_Array, μ_Mean, yerror = μ_Std, title = "Critical Density = 0.3", legend = false, xlabel = "Temperature", ylabel= "< Chemical Potential > [Unitless]", width = 3, size = [1200, 800]) 
+    #savefig(Chemical_Plot, "$Route/CriticalDensity_0.3")
 end
 
 Cycle()
