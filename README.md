@@ -1,2 +1,5 @@
-# NVT_MC
-NVT Monte Carlo simulation code
+# Canonical Monte Carlo
+
+Semi-interactive code
+
+    julia Canonical.jl &rho T
