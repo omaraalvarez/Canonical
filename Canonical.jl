@@ -8,7 +8,7 @@ using Distributions;
 
 function Canonical_MonteCarlo(ρ::Float64, T::Float64, R_Cut::Float64 = 3.0)
     ##################################### CONFIGURATIONAL STEPS #############################
-    println("************ CANONICAL MONTE CARLO *************")
+    println("\t\tCANONICAL MONTE CARLO")
     MC_Relaxation_Steps = 20_000;
     MC_Equilibrium_Steps = 250_000;
     MC_Measurement = 10;
@@ -31,35 +31,34 @@ function Canonical_MonteCarlo(ρ::Float64, T::Float64, R_Cut::Float64 = 3.0)
     x, y, z = InitialPositions(N, L);
     Energy = Total_Energy_Calculation(L, x, y, z);
     ################################################# SIMULATION CYCLES ###########################################
+    println("- Starting Simulation Cycles")
     for k = 1:MC_Steps
         @test all(Array(x) .<= L / 2.) && all(Array(x) .>= -L / 2.)
         @test all(Array(y) .<= L / 2.) && all(Array(y) .>= -L / 2.)
         @test all(Array(z) .<= L / 2.) && all(Array(z) .>= -L / 2.)
         ####################################### PRINTS SIMULATION PROGRESS TO SCREEN ########################################
         if k < MC_Relaxation_Steps && k % .01MC_Relaxation_Steps == 0
-            println("$(convert(Int64, 100k / MC_Relaxation_Steps))% Relaxation.")
+            println("$(convert(Int64, 100k / MC_Relaxation_Steps))% RELAXATION: [ρ* = $ρ, L* = $L, T* = $T]")
             println("N = $N Particles")
-            println("U / N = $(round(Energy / length(x), digits = 6))")
+            println("U* / N = $(round(Energy / length(x), digits = 6))")
             println("Max Displacement = $(round(Displacement, digits = 6))")
             println("Movements: $N_Displacement")
-            println("   Accepted: $N_Displacement_Accepted ($(round(100N_Displacement_Accepted/N_Displacement, digits = 2))%)")
-            println("   Rejected: $(N_Displacement - N_Displacement_Accepted) ($(round(100 - 100N_Displacement_Accepted/N_Displacement, digits = 2))%)")
-            println("")
+            println("   Accepted: $N_Displacement_Accepted ($(round(100N_Displacement_Accepted/N_Displacement, digits = 2))%)\tRejected: $(N_Displacement - N_Displacement_Accepted) ($(round(100 - 100N_Displacement_Accepted/N_Displacement, digits = 2))%)\n")
+            N_Displacement, N_Displacement_Accepted = 0, 0;
         end
 
         if k > MC_Relaxation_Steps && k % .01MC_Equilibrium_Steps == 0
-            println("$(convert(Int64, ceil(100(k - MC_Relaxation_Steps) / MC_Equilibrium_Steps)))% Equilibrium [$(N_Measurements + 1) Measurements]")
+            println("$(convert(Int64, ceil(100(k - MC_Relaxation_Steps) / MC_Equilibrium_Steps)))% EQUILIBRIUM: [ρ* = $ρ, L* = $L, T* = $T, $(N_Measurements + 1) Measurements]")
             println("N = $N Particles")
-            println("U / N = $(round(Energy / length(x), digits = 6))")
-            println("μ = $(round(μ_Array[N_Measurements], digits = 6))")
+            println("U* / N = $(round(Energy / length(x), digits = 6))")
+            println("μ* = $(round(μ_Array[N_Measurements], digits = 6))")
             println("Max Displacement = $(round(Displacement, digits = 6))")
             println("Movements: $N_Displacement")
-            println("   Accepted: $N_Displacement_Accepted ($(round(100N_Displacement_Accepted/N_Displacement, digits = 2))%)")
-            println("   Rejected: $(N_Displacement - N_Displacement_Accepted) ($(round(100 - 100N_Displacement_Accepted/N_Displacement, digits = 2))%)")
-            println("")
+            println("   Accepted: $N_Displacement_Accepted ($(round(100N_Displacement_Accepted/N_Displacement, digits = 2))%)\tRejected: $(N_Displacement - N_Displacement_Accepted) ($(round(100 - 100N_Displacement_Accepted/N_Displacement, digits = 2))%)\n")
+            N_Displacement, N_Displacement_Accepted = 0, 0;
         end
 
-        k == MC_Relaxation_Steps ? println("* FINISHED RELAXATION STEPS *") : nothing
+        k == MC_Relaxation_Steps ? println("- FINISHED RELAXATION STEPS\n") : nothing
         @inbounds for i = 1:N
             N_Displacement += 1;
             Energy, N_Displacement_Accepted = Movement(i, L, Beta, Displacement, Energy, N_Displacement_Accepted, x, y, z)
@@ -82,11 +81,19 @@ function Canonical_MonteCarlo(ρ::Float64, T::Float64, R_Cut::Float64 = 3.0)
             1. * N_Displacement_Accepted / N_Displacement > 0.55 ? Displacement *= 1.05 : Displacement *= 0.95
             Displacement < 0.05 ? Displacement = 0.05 : nothing
             Displacement > L / 4. ? Displacement = L / 4. : nothing
-            N_Displacement, N_Displacement_Accepted = 0, 0;
         end  
     end
     ####################################################### END OF SIMULATION CYCLES #############################################
-
+    ########################################################### SUMMARY FILE ##############################################
+    println("< U* / N > = $(round(Mean_Energy_Array[N_Measurements], digits = 6)) ± $(round(STD_Energy_Array[N_Measurements], digits = 6))")
+    println("< μ* > = $(round(Mean_μ_Array[N_Measurements], digits = 6)) ± $(round(STD_μ_Array[N_Measurements], digits = 6))")
+    Summary_File = open("$Output_Route/Summary.dat", "w+")
+    println(Summary_File, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   INPUT   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
+    println(Summary_File, "Density = $ρ\tN = $N\nL = $L\tV = $V\tT = $T\n$MC_Relaxation_Steps Relaxation Steps.\n$MC_Equilibrium_Steps Equilibrium Steps.\tMeasurements every $MC_Measurement steps.")
+    println(Summary_File, "\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   OUTPUT   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
+    println(Summary_File, "< U* / N > = $(round(Mean_Energy_Array[N_Measurements], digits = 6)) ± $(round(STD_Energy_Array[N_Measurements], digits = 6))")
+    println(Summary_File, "< μ* > = $(round(Mean_μ_Array[N_Measurements], digits = 6)) ± $(round(STD_μ_Array[N_Measurements], digits = 6))")
+    close(Summary_File)
     ################################################################ OUTPUT ##############################################################
     Energy_File = open("$Output_Route/Energy.dat", "w+");
     μ_File = open("$Output_Route/ChemicalPotential.dat", "w+");
@@ -94,7 +101,7 @@ function Canonical_MonteCarlo(ρ::Float64, T::Float64, R_Cut::Float64 = 3.0)
     println(μ_File, "Step\tChemicalPotential\tMean_ChemicalPotential\tStd_ChemicalPotential")
     for i = 1:N_Measurements
         println(Energy_File, "$i\t$(round(Energy_Array[i], digits = 6))\t$(round(Mean_Energy_Array[i], digits = 6))\t$(round(STD_Energy_Array[i], digits = 6))")
-        println(μ_File, "$i\t$(round(μ_Array[N_Measurements], digits = 6))\t$(round(Mean_μ_Array[i], digits = 6))\t$(round(STD_μ_Array[i], digits = 6))")
+        println(μ_File, "$i\t$(round(μ_Array[i], digits = 6))\t$(round(Mean_μ_Array[i], digits = 6))\t$(round(STD_μ_Array[i], digits = 6))")
     end
     close(Energy_File)
     close(μ_File)
@@ -139,17 +146,6 @@ function Canonical_MonteCarlo(ρ::Float64, T::Float64, R_Cut::Float64 = 3.0)
 
     μ_Plots = plot(μ_Plot, μ_Histogram, Mean_μ_Plot, layout = (@layout [a{0.3h} ; b c]))
     savefig(μ_Plots, "$Output_Route/ChemicalPotential_Plots")
-
-    ########################################################### SUMMARY FILE ##############################################
-    println("< U* / N > = $(round(Mean_Energy_Array[N_Measurements], digits = 6)) ± $(round(STD_Energy_Array[N_Measurements], digits = 6))")
-    println("< μ* > = $(round(Mean_μ_Array[N_Measurements], digits = 6)) ± $(round(STD_μ_Array[N_Measurements], digits = 6))")
-    Summary_File = open("$Output_Route/Summary.dat", "w+")
-    println(Summary_File, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   INPUT   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
-    println(Summary_File, "Density = $ρ\nL = $L\tV = $V\nT = $T\n$MC_Relaxation_Steps Relaxation Steps.\n$MC_Equilibrium_Steps Equilibrium Steps.\tMeasurements every $MC_Measurement steps.")
-    println(Summary_File, "\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   OUTPUT   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
-    println(Summary_File, "< U* / N > = $(round(Mean_Energy_Array[N_Measurements], digits = 6)) ± $(round(STD_Energy_Array[N_Measurements], digits = 6))")
-    println(Summary_File, "< μ* > = $(round(Mean_μ_Array[N_Measurements], digits = 6)) ± $(round(STD_μ_Array[N_Measurements], digits = 6))")
-    close(Summary_File)
 end
 
 function InitialPositions(N::Int64, L::Float64)
@@ -172,7 +168,7 @@ function InitialPositions(N::Int64, L::Float64)
         end
         Overlap == true ? nothing : i += 1
     end
-    println("* Initial Configuration Established *")
+    println("\n- Initial Configuration Established\n")
     return x, y, z
 end
 
@@ -190,7 +186,7 @@ function Total_Energy_Calculation(L::Float64, x::Array{Float64, 1}, y::Array{Flo
 end
 
 function Movement(i::Int64, L::Float64, Beta::Float64, Displacement::Float64, Energy::Float64, N_Displacement_Accepted::Int64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, R_Cut::Float64 = 3.0)
-    Energy_Old = Energy_Calculation(L, x[i], y[i], z[i], x, y, z)
+    Energy_Old = Energy_Calculation(L, x[i], y[i], z[i], x, y, z);
     x_Old, y_Old, z_Old = x[i], y[i], z[i];
     x[i] += Displacement * (rand() - 0.5);
     y[i] += Displacement * (rand() - 0.5);
@@ -216,10 +212,8 @@ function Energy_Calculation(L::Float64, rx::Float64, ry::Float64, rz::Float64, x
         Delta_x = PeriodicBoundaryConditions!(L, Delta_x);
         Delta_y = PeriodicBoundaryConditions!(L, Delta_y);
         Delta_z = PeriodicBoundaryConditions!(L, Delta_z);
-        r = Delta_x^2 + Delta_y^2 + Delta_z^2;
-        if r != 0.
-            Energy += U(r);
-        end
+        r = sqrt(Delta_x^2 + Delta_y^2 + Delta_z^2);
+        r != 0. ? Energy += U(r) : nothing
     end
     return Energy
 end
