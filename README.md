@@ -12,22 +12,13 @@ where the state $\nu$ is generated from state $\mu$ by displacing a molecule $i$
 
 Acceptance of this new state is subject to the probability:
 
-$A(S_j \rightarrow S_i) = min\{1, e^{-\beta(E_i - E_j)}\}$.
-
 The algorithm is summarized in five simple steps:
 
-1. Generation of an initial state. Particles should be uniformly distributed to avoid discontinuities in the potential energy.
-2. Random selection of a particle $i$ with a random displacement given by $\vec{r}_i^{New} = \vec{r}_i^{Old} +\vec{\delta}_i(\vec{\eta - \frac{1}{2}})$.
-3. Calcualte energy change $\Delta U = U(\vec{r}_N^{New}) - U(\vec{r}_N^{Old})$
-    * If $\Delta U < 0$, the move is accepted.
-    * If $\Delta U \geq 0$, a random number $\eta$ is chosen such that $0 \leq \eta \leq 1$.
-        * If $\eta \leq e^{-\Delta U /k_BT} accept the move; else, reject it.$
-4. Sample therman and/or structural properties of interest.
-5. Repeat fro step **2.** until acceptable convergence criteria has been achieved.
+![NVT Metropolis Monte Carlo](/img/Algorithm.png)
 
-Code has been designed with succesful parameters as compared with official reported results. This includes a $20\sigma \times 20\sigma \times 20 \sigma$ simulation box with $2 \times N \times 10^4$ relaxation steps and $2.5 \times N \times 10^5$ equilibrium steps, for a total of 25,000 samples.
+Code has been designed with succesful parameters as compared with official reported results. This includes a 20σ ✕ 20σ ✕ 20σ simulation box with 2 ✕ N ✕ 10E4 relaxation steps and 2.5 ✕ N ✕ 10E5 equilibrium steps, for a total of 25,000 samples.
 
-A simple and semi-interactive execution has been designed for those not familiar with the Julia language, where the density and temperature are taken as parameters, i. e., a system with $\rho^* = 0.1$ and $T^* = 1.5$
+A simple and semi-interactive execution has been designed for those not familiar with the Julia language, where the density and temperature are taken as parameters, i. e., a system with ρ* = 0.1 and T* = 1.5:
 
     julia Canonical.jl 0.1 1.5
 
