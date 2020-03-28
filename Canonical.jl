@@ -6,7 +6,7 @@ using LaTeXStrings;
 using StatsPlots;
 using Distributions;
 
-function Canonical_MonteCarlo(ρ::Float64, T::Float64, R_Cut::Float64 = 3.0)
+function Canonical_MonteCarlo(ρ::Type, T::Type, R_Cut::Type = 3.) where {Type <: Real}
     ##################################### CONFIGURATIONAL STEPS #############################
     println("\t\tCANONICAL MONTE CARLO")
     MC_Relaxation_Steps = 20_000;
@@ -148,7 +148,7 @@ function Canonical_MonteCarlo(ρ::Float64, T::Float64, R_Cut::Float64 = 3.0)
     savefig(μ_Plots, "$Output_Route/ChemicalPotential_Plots")
 end
 
-function InitialPositions(N::Int64, L::Float64)
+function InitialPositions(N::Int64, L::Type) where {Type <: Real}
     x, y, z, i = zeros(Float64, N), zeros(Float64, N), zeros(Float64, N), 1;
     while i <= N
         x[i], y[i], z[i] = L * (rand() - 0.5), L * (rand() - 0.5), L * (rand() - 0.5);
@@ -172,7 +172,7 @@ function InitialPositions(N::Int64, L::Float64)
     return x, y, z
 end
 
-function Total_Energy_Calculation(L::Float64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, σ::Float64 = 1.0, λ::Float64 = 1.5, R_Cut::Float64 = 3.0)
+function Total_Energy_Calculation(L::Type, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, σ::Type = 1., λ::Type = 1.5, R_Cut::Type = 3.) where {Type <: Real}
     Energy = 0.;
     @inbounds for i = 1:length(x) - 1, j = i + 1:length(x)
         Delta_x, Delta_y, Delta_z = x[j] - x[i], y[j] - y[i], z[j] - z[i];
@@ -185,7 +185,7 @@ function Total_Energy_Calculation(L::Float64, x::Array{Float64, 1}, y::Array{Flo
     return Energy
 end
 
-function Movement(i::Int64, L::Float64, Beta::Float64, Displacement::Float64, Energy::Float64, N_Displacement_Accepted::Int64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, R_Cut::Float64 = 3.0)
+function Movement(i::Int64, L::Type, Beta::Float64, Displacement::Float64, Energy::Float64, N_Displacement_Accepted::Int64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, R_Cut::Type = 3.) where {Type <: Real}
     Energy_Old = Energy_Calculation(L, x[i], y[i], z[i], x, y, z);
     x_Old, y_Old, z_Old = x[i], y[i], z[i];
     x[i] += Displacement * (rand() - 0.5);
@@ -205,7 +205,7 @@ function Movement(i::Int64, L::Float64, Beta::Float64, Displacement::Float64, En
     return Energy, N_Displacement_Accepted
 end
 
-function Energy_Calculation(L::Float64, rx::Float64, ry::Float64, rz::Float64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, R_Cut::Float64 = 3.0)
+function Energy_Calculation(L::Type, rx::Float64, ry::Float64, rz::Float64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, R_Cut::Type = 3.) where {Type <: Real}
     Energy = 0.;
     @inbounds for i = 1:length(x)
         Delta_x, Delta_y, Delta_z = rx - x[i], ry - y[i], rz - z[i];
@@ -218,15 +218,19 @@ function Energy_Calculation(L::Float64, rx::Float64, ry::Float64, rz::Float64, x
     return Energy
 end
 
-function PeriodicBoundaryConditions!(L::Float64, x::Float64)
+function PeriodicBoundaryConditions!(L::Type, x::Float64) where {Type <: Real}
     return x - L * round(x / L)
 end
 
-function U(r::Float64, σ::Float64 = 1.0, λ::Float64 = 1.5, e::Float64 = 1.)
+function U(r::Float64, σ::Type = 1., λ::Type = 1.5, e::Type = 1.) where {Type <: Real}
     r <= σ ? (return Inf) : r <= λ ? (return -e) : (return 0)
 end
 
-function TestParticleInsertion(L::Float64, Beta::Float64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, Insertions::Int64 = 5000, R_Cut::Float64 = 3.0)
+function U_LJ(r::Float64, σ::Type = 1., e::Type = 1.)
+    return 4e * (r^(-12.) - r^(-6))
+end
+
+function TestParticleInsertion(L::Type, Beta::Float64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, Insertions::Int64 = 5000, R_Cut::Type = 3.) where {Type <: Real}
     μ_Sum = 0.;
     for i = 1:Insertions
         Energy = 0;
@@ -244,7 +248,7 @@ function TestParticleInsertion(L::Float64, Beta::Float64, x::Array{Float64, 1}, 
     return -log(μ_Sum / Insertions) / Beta
 end
 
-function RadialDistributionFunction(N_Bins::Int64, L::Float64, Density::Float64, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, R_Cut::Float64 = 3.0)
+function RadialDistributionFunction(N_Bins::Int64, L::Type, Density::Type, x::Array{Float64, 1}, y::Array{Float64, 1}, z::Array{Float64, 1}, R_Cut::Type = 3.) where {Type <: Real}
     Delta = R_Cut / N_Bins;
     g_r = zeros(Float64, N_Bins);
     @inbounds for i = 1:length(x) - 1, j = i + 1:length(x)
