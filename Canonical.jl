@@ -226,7 +226,7 @@ function U(r::Float64, σ::Type = 1., λ::Type = 1.5, e::Type = 1.) where {Type 
     r <= σ ? (return Inf) : r <= λ ? (return -e) : (return 0)
 end
 
-function U_LJ(r::Float64, σ::Type = 1., e::Type = 1.)
+function U_LJ(r::Float64, σ::Type = 1., e::Type = 1.) where {Type <: Real}
     return 4e * (r^(-12.) - r^(-6))
 end
 
@@ -268,4 +268,4 @@ function RadialDistributionFunction(N_Bins::Int64, L::Type, Density::Type, x::Ar
     return g_r
 end
 
-Canonical_MonteCarlo(parse(Float64, ARGS[1]), parse(Float64, ARGS[2]))
+@time Canonical_MonteCarlo(parse(Float64, ARGS[1]), parse(Float64, ARGS[2]))
