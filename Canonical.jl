@@ -6,6 +6,23 @@ using LaTeXStrings;
 using StatsPlots;
 using Distributions;
 
+using ArgParse;
+
+function Parse_Commandline()
+    s = ArgParseSettings()
+    @add_arg_table! s begin
+        "ρ"
+            help = "Density";
+            arg_type = Float64;
+            required = true;
+        "T"
+            help = "Temperature";
+            arg_type = Float64;
+            required = true;
+    end
+    return parse_args(s)
+end
+
 function Canonical_MonteCarlo(ρ::Type, T::Type, R_Cut::Type = 3.) where {Type <: Real}
     ##################################### CONFIGURATIONAL STEPS #############################
     println("\t\tCANONICAL MONTE CARLO")
@@ -268,4 +285,9 @@ function RadialDistributionFunction(N_Bins::Int64, L::Type, Density::Type, x::Ar
     return g_r
 end
 
-@time Canonical_MonteCarlo(parse(Float64, ARGS[1]), parse(Float64, ARGS[2]))
+Args = Parse_Commandline()
+println("Parsed args:")
+for (arg,val) in Args
+    println("  $arg  =>  $val")
+end
+@time Canonical_MonteCarlo(Args["ρ"], Args["T"])
