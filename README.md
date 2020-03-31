@@ -18,9 +18,17 @@ The algorithm is summarized in five simple steps:
 
 Code has been designed with succesful parameters as compared with official reported results. This includes a 20σ ✕ 20σ ✕ 20σ simulation box with 2 ✕ N ✕ 10E4 relaxation steps and 2.5 ✕ N ✕ 10E5 equilibrium steps, for a total of 25,000 samples.
 
-A simple and semi-interactive execution has been designed for those not familiar with the Julia language, where the density and temperature are taken as parameters, i. e., a system with ρ* = 0.1 and T* = 1.5:
+Execution is straightforward by aprsing arguments:
 
-    julia Canonical.jl 0.1 1.5
+    julia Canonical.jl -h
+    usage: Canonical.jl [-h] ρ T
+
+    positional arguments:
+    ρ     Density (type: Float64)
+    T     Temperature (type: Float64)
+
+    optional arguments:
+    -h, --help  show this help message and exit
 
 This generates output files with the energy, chemical potential and radial distribution function evolution of the system along the simulation, as well as their corresponding plots.
 
