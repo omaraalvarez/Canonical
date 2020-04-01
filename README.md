@@ -24,11 +24,11 @@ Execution is straightforward by aprsing arguments:
     usage: Canonical.jl [-h] ρ T
 
     positional arguments:
-    ρ     Density (type: Float64)
-    T     Temperature (type: Float64)
+        ρ     Density (type: Float64)
+        T     Temperature (type: Float64)
 
     optional arguments:
-    -h, --help  show this help message and exit
+        -h, --help  show this help message and exit
 
 This generates output files with the energy, chemical potential and radial distribution function evolution of the system along the simulation, as well as their corresponding plots.
 
