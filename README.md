@@ -18,7 +18,7 @@ The algorithm is summarized in five simple steps:
 
 Code has been designed with succesful parameters as compared with official reported results. This includes a 20σ ✕ 20σ ✕ 20σ simulation box with 2 ✕ N ✕ 10E4 relaxation steps and 2.5 ✕ N ✕ 10E5 equilibrium steps, for a total of 25,000 samples.
 
-Execution is straightforward by aprsing arguments:
+Execution is straightforward by parsing arguments:
 
     julia Canonical.jl -h
     usage: Canonical.jl [-h] ρ T
